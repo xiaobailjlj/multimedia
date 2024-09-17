@@ -14,7 +14,6 @@ auto compareByValue = [](const std::pair<int, double> &a, const std::pair<int, d
     return a.second > b.second; // Compare based on the value (second element)
 };
 
-// Function to load all user ratings from the dataset
 std::map<int, std::map<int, double>> loadAllUserRatings(const std::string &filename)
 {
     std::ifstream file(filename);
@@ -52,7 +51,6 @@ std::map<int, std::map<int, double>> loadAllUserRatings(const std::string &filen
     return userRatings;
 }
 
-// Function to calculate RatingDistance between two users
 double calculateRatingDistance(const std::map<int, double> &user1Ratings, const std::map<int, double> &user2Ratings)
 {
     double totalDistance = 0;
@@ -61,10 +59,9 @@ double calculateRatingDistance(const std::map<int, double> &user1Ratings, const 
     // Start time point
     auto start_once = std::chrono::high_resolution_clock::now();
 
-    // Iterate over the movies rated by user1
     for (const auto &[movieID, rating1] : user1Ratings)
     {
-        // Check if user2 has rated the same movie
+        // add distance only if both users have seen this movie
         if (user2Ratings.find(movieID) != user2Ratings.end())
         {
             double rating2 = user2Ratings.at(movieID);         
@@ -78,17 +75,16 @@ double calculateRatingDistance(const std::map<int, double> &user1Ratings, const 
     std::chrono::duration<double> elapsed = end_once - start_once;
 
     // Output the time taken
-    std::cout << "Time taken by calculateRatingDistance() function: " << elapsed.count() << " seconds" << std::endl;
+    // std::cout << "Time taken by calculateRatingDistance() function: " << elapsed.count() << " seconds" << std::endl;
     
     }
 
-    // If no common movies, return -1 to indicate no valid distance 
+    // no common movies
     if (commonMovies == 0)
     {
         return -1.0;
     }
 
-    // Return the average distance
     return totalDistance / commonMovies;
 }
 
@@ -97,14 +93,11 @@ void calculateUserDistances(int targetUserID, const std::map<int, std::map<int, 
 {
     const auto &targetUserRatings = allUserRatings.at(targetUserID);
 
-    // Iterate over all users and record their distance to target user
     for (const auto &[userID, userRatings] : allUserRatings)
     {
         if (userID != targetUserID)
         {
             double distance = calculateRatingDistance(targetUserRatings, userRatings);
-
-            // Insert user-distance pairs into the heap
             userDistances.push({userID, distance});
         }
     }
@@ -112,31 +105,29 @@ void calculateUserDistances(int targetUserID, const std::map<int, std::map<int, 
     return;
 }
 
-// Function to predict the rating for a movie using collaborative filtering
-double predictRating(int targetUserID, int targetMovieID, const std::map<int, std::map<int, double>> &allUserRatings)
+// main logic to calculate most similar user and predict rate
+void MovieRate(int targetUserID, int targetMovieID, const std::map<int, std::map<int, double>> &allUserRatings, int &simialrUser, double &predictRating, double&minDistance)
 {
     std::priority_queue<std::pair<int, double>, std::vector<std::pair<int, double>>, decltype(compareByValue)> userDistances(compareByValue);
     calculateUserDistances(targetUserID, allUserRatings, userDistances);
 
     while (!userDistances.empty())
     {
-        // Get the pair with the smallest value
+        // Get the user with min diatance
         auto minUserDistance = userDistances.top();
         userDistances.pop();
         int minUser = minUserDistance.first;
-        float minDistance = minUserDistance.second;
+        minDistance = minUserDistance.second;
         // If a similar user is found and has rated the target movie
         if (minDistance!=-1 && allUserRatings.at(minUser).find(targetMovieID) != allUserRatings.at(minUser).end())
         {
-            double predictedRating = allUserRatings.at(minUser).at(targetMovieID);
-            std::cout << "The predicted rating for UserID: " << targetUserID << " and MovieID: " << targetMovieID
-                      << " is " << predictedRating << " based on the most similar user: "
-                      << minUser << " with a rating distance: " << minDistance << std::endl;
-            return predictedRating;
+            predictRating = allUserRatings.at(minUser).at(targetMovieID);
+            simialrUser = minUser;
+            return;
         }
     }
-    std::cerr << "Error: Could not find a similar user who has rated the target movie." << std::endl;
-    return -1.0;
+    std::cerr << "unable to find a similar user who has rated the target movie." << std::endl;
+    return;
 }
 
 // ./MovieRate 30801 1407
@@ -150,18 +141,23 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Parse command-line arguments
     int targetUserID = std::stoi(argv[1]);
     int targetMovieID = std::stoi(argv[2]);
 
-    // Path to the MovieLens 10M ratings dataset
     std::string ratingsFile = "ratings.dat";
 
-    // Load all user ratings from the dataset
+    // Load all user ratings
     std::map<int, std::map<int, double>> allUserRatings = loadAllUserRatings(ratingsFile);
 
-    // Predict the rating for the target movie
-    double predictedRating = predictRating(targetUserID, targetMovieID, allUserRatings);
+    int simialrUser = -1;
+    double predictRating = -1;
+    double minDistance = -1;
+
+    MovieRate(targetUserID, targetMovieID, allUserRatings, simialrUser, predictRating, minDistance);
+
+    std::cout << "The predicted rating for UserID: " << targetUserID << " and MovieID: " << targetMovieID
+                      << " is " << predictRating << " based on the most similar user: "
+                      << simialrUser << " with a rating distance: " << minDistance << std::endl;
 
     // End time point
     auto end = std::chrono::high_resolution_clock::now();

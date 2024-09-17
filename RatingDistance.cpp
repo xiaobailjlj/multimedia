@@ -13,7 +13,6 @@ struct Rating
     double rating;
 };
 
-// Function to load the ratings of a specific user into a map
 void loadUserRatings(const std::string &filename, int userID1, int userID2, std::map<int, double> &userRating1, std::map<int, double> &userRating2)
 {
     std::ifstream file(filename);
@@ -52,18 +51,16 @@ void loadUserRatings(const std::string &filename, int userID1, int userID2, std:
     }
 }
 
-// Function to compute the RatingDistance between two users
-double computeRatingDistance(const std::map<int, double> &user1Ratings, const std::map<int, double> &user2Ratings)
+double calculateRatingDistance(const std::map<int, double> &user1Ratings, const std::map<int, double> &user2Ratings)
 {
     double totalDistance = 0;
     int commonMovies = 0;
 
-    // Iterate through the movies rated by user1
     for (std::map<int, double>::const_iterator it = user1Ratings.begin(); it != user1Ratings.end(); ++it)
     {
         int movieID = it->first;
         double rating1 = it->second;
-        // Check if user2 has rated the same movie
+        // add distance only if both users have seen this movie
         if (user2Ratings.find(movieID) != user2Ratings.end())
         {
             double rating2 = user2Ratings.at(movieID);
@@ -73,13 +70,12 @@ double computeRatingDistance(const std::map<int, double> &user1Ratings, const st
         }
     }
 
-    // If no common movies were found, return -1 to indicate no valid distance
+    // no common movies
     if (commonMovies == 0)
     {
         return -1.0;
     }
 
-    // Return the average distance
     return totalDistance / commonMovies;
 }
 
@@ -96,20 +92,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Parse the command-line arguments
     int userID1 = std::stoi(argv[1]);
     int userID2 = std::stoi(argv[2]);
 
-    // Path to the MovieLens 10M ratings dataset
     std::string ratingsFile = "ratings.dat";
 
     // Load the ratings for both users
     std::map<int, double> user1Ratings, user2Ratings;
     loadUserRatings(ratingsFile, userID1, userID2, user1Ratings, user2Ratings);
-    // std::map<int, double> user2Ratings = loadUserRatings(ratingsFile, userID2);
 
     // Compute the rating distance
-    double distance = computeRatingDistance(user1Ratings, user2Ratings);
+    double distance = calculateRatingDistance(user1Ratings, user2Ratings);
 
     // Output the result
     if (distance < 0)
